@@ -10,3 +10,4 @@ frontend/dist/
 *.egg-info/
 dist/
 build/
+**/.DS_Store
