@@ -1,6 +1,6 @@
 import re
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 
 SCORE_CONFIG = {
     "developer_pts":   12, "developer_max":  84,
@@ -76,6 +76,10 @@ def _score_one(data: dict | None) -> dict:
     return {"total": max(total, 0), "bd": bd, "penalized": penalty}
 
 
+def _rank_key(r: dict) -> tuple:
+    return (r["score"]["total"], r["score"]["bd"].get("provenance", 0))
+
+
 def score_and_declare_winner(normalized: list[dict]) -> dict:
     scored = []
     for r in normalized:
@@ -88,8 +92,8 @@ def score_and_declare_winner(normalized: list[dict]) -> dict:
         r["score"]["bd"]["speed"] = bonus
         r["score"]["total"]      += bonus
 
-    winner = max(scored, key=lambda x: x["score"]["total"], default=None)
-    ranked = sorted(scored, key=lambda x: x["score"]["total"], reverse=True)
+    winner = max(scored, key=_rank_key, default=None)
+    ranked = sorted(scored, key=_rank_key, reverse=True)
 
     return {
         "winner":        winner["model_key"] if winner else None,
@@ -106,16 +110,18 @@ def score_and_declare_winner(normalized: list[dict]) -> dict:
             for r in ranked
         ],
         "consensus":     _check_consensus(scored),
-        "extraction_ts": datetime.utcnow().isoformat(),
+        "extraction_ts": datetime.now(timezone.utc).isoformat(),
     }
 
 
 def _check_consensus(scored: list[dict]) -> bool:
-    companies = [
-        (r.get("output") or {}).get("pipeline", [{}])[0].get("company", "").lower()
-        for r in scored
-        if (r.get("output") or {}).get("pipeline")
-    ]
+    companies = []
+    for r in scored:
+        pipeline = (r.get("output") or {}).get("pipeline", [])
+        for entry in pipeline:
+            name = (entry.get("company") or "").lower().strip()
+            if name:
+                companies.append(name)
     if len(companies) < 2:
         return False
     top = Counter(companies).most_common(1)

@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from db.connection import get_pool
 
 
@@ -14,5 +14,5 @@ async def log_audit_pg(action: str, input_data: dict, output_data: dict) -> None
             action,
             json.dumps(input_data),
             json.dumps(output_data),
-            datetime.utcnow(),
+            datetime.now(timezone.utc),
         )

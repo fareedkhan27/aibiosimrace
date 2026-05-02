@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db.connection import get_pool
 
 
@@ -34,7 +34,7 @@ async def cache_get(key: str) -> dict | None:
 
 async def cache_set(key: str, result: dict, ttl_hours: int = 168) -> None:
     pool    = await get_pool()
-    expires = datetime.utcnow() + timedelta(hours=ttl_hours)
+    expires = datetime.now(timezone.utc) + timedelta(hours=ttl_hours)
     async with pool.acquire() as conn:
         await conn.execute(
             """
@@ -61,7 +61,7 @@ async def cache_set(key: str, result: dict, ttl_hours: int = 168) -> None:
             json.dumps(result.get("winner_data")),
             json.dumps(result.get("rankings", [])),
             result.get("consensus", False),
-            datetime.utcnow(),
+            datetime.now(timezone.utc),
             expires,
             result.get("elapsed_s"),
         )
