@@ -46,22 +46,42 @@ function formatBrief(d) {
 }
 
 function exportPDF(brand, winnerAlias, briefText, aiInsight) {
-  const doc = new jsPDF();
+  const doc        = new jsPDF();
+  const pageH      = doc.internal.pageSize.getHeight();
+  const margin     = 14;
+  const maxY       = pageH - 14;
+  const lineH      = 4.5;
+  let y            = 20;
+
+  const addLines = (lines, size) => {
+    doc.setFontSize(size);
+    for (const line of lines) {
+      if (y > maxY) { doc.addPage(); y = 16; doc.setFontSize(size); }
+      doc.text(line, margin, y);
+      y += lineH;
+    }
+  };
+
   doc.setFontSize(14);
-  doc.text(`Biosimilar Intelligence Brief: ${brand}`, 14, 20);
+  doc.text(`Biosimilar Intelligence Brief: ${brand}`, margin, y);
+  y += 8;
   doc.setFontSize(10);
-  doc.text(`Winner: ${winnerAlias}`, 14, 30);
-  doc.setFontSize(8);
-  const lines = doc.splitTextToSize(briefText, 180);
-  doc.text(lines, 14, 42);
+  doc.text(`Winner: ${winnerAlias}  ·  ${new Date().toLocaleDateString()}`, margin, y);
+  y += 10;
+
+  addLines(doc.splitTextToSize(briefText, 182), 8);
+
   if (aiInsight) {
-    const y = 42 + lines.length * 4 + 8;
+    y += 5;
+    if (y > maxY) { doc.addPage(); y = 16; }
     doc.setFontSize(9);
-    doc.text("AI Insight:", 14, y);
-    doc.setFontSize(8);
-    const ilines = doc.splitTextToSize(aiInsight, 180);
-    doc.text(ilines, 14, y + 6);
+    doc.setFont(undefined, "bold");
+    doc.text("AI Insight — beyond the data", margin, y);
+    doc.setFont(undefined, "normal");
+    y += 5;
+    addLines(doc.splitTextToSize(aiInsight, 182), 8);
   }
+
   doc.save(`biosimilar-brief-${brand.toLowerCase().replace(/\s+/g, "-")}.pdf`);
 }
 
@@ -129,35 +149,46 @@ export default function RacePanel({ accessKey }) {
   const winner     = result?.rankings?.find((r) => r.model_key === result.winner);
   const winnerMeta = winner ? MODEL_META[winner.model_key] : null;
 
+  const _US_SIGNALS = ["us", "usa", "united states", "fda", "purple book"];
+  const _EU_SIGNALS = ["eu", "europe", "european union", "ema", "uk", "mhra", "united kingdom"];
+  const _isUSEU = (markets) => {
+    const norm = (markets || []).map((m) => m.toLowerCase());
+    return norm.some((m) => [..._US_SIGNALS, ..._EU_SIGNALS].some((s) => m.includes(s)));
+  };
+
   const launchedBiosimilars = (() => {
-    if (!result) return [];
-    const seenKeys = new Set();
-    const entries  = [];
+    if (!result) return { useu: [], row: [] };
+    const useu = [], row = [];
+    const seenUSEU = new Set(), seenROW = new Set();
     (result.rankings || []).forEach((r) => {
-      const modelAlias = MODEL_META[r.model_key]?.alias;
+      const alias = MODEL_META[r.model_key]?.alias;
       (r.output?.pipeline || []).forEach((p) => {
         const phase = (p.phase || "").toLowerCase();
         if (!phase.includes("launch") && !phase.includes("approved")) return;
         const key = (p.company || "").toLowerCase().trim();
         if (!key) return;
-        if (seenKeys.has(key)) {
-          const existing = entries.find((e) => e.key === key);
-          if (existing && modelAlias && !existing.sources.includes(modelAlias))
-            existing.sources.push(modelAlias);
-          return;
-        }
-        seenKeys.add(key);
-        entries.push({
+        const entry = {
           key,
           company:     p.company,
           phase:       p.phase,
           markets:     p.markets || [],
           indications: p.indications || [],
-          sources:     [modelAlias].filter(Boolean),
-        });
+          sources:     [alias].filter(Boolean),
+        };
+        if (_isUSEU(p.markets)) {
+          const ex = useu.find((e) => e.key === key);
+          if (ex) { if (alias && !ex.sources.includes(alias)) ex.sources.push(alias); return; }
+          if (!seenUSEU.has(key)) { seenUSEU.add(key); useu.push(entry); }
+        } else {
+          const ex = row.find((e) => e.key === key);
+          if (ex) { if (alias && !ex.sources.includes(alias)) ex.sources.push(alias); return; }
+          if (!seenROW.has(key)) { seenROW.add(key); row.push(entry); }
+        }
       });
     });
-    return entries.sort((a, b) => a.company.localeCompare(b.company));
+    useu.sort((a, b) => a.company.localeCompare(b.company));
+    row.sort((a, b) => a.company.localeCompare(b.company));
+    return { useu, row };
   })();
 
   return (
@@ -296,50 +327,63 @@ export default function RacePanel({ accessKey }) {
         </div>
       )}
 
-      {/* Launched & Approved Globally */}
-      {result && launchedBiosimilars.length > 0 && (
+      {/* Launched & Approved Globally — split US/EU vs Rest of World */}
+      {result && (launchedBiosimilars.useu.length > 0 || launchedBiosimilars.row.length > 0) && (
         <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)",
                       borderRadius: "var(--border-radius-lg)", padding: "1.25rem", marginBottom: "1.5rem" }}>
           <p style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase",
-                      letterSpacing: "0.08em", margin: "0 0 12px" }}>
-            Launched &amp; Approved Biosimilars — Globally ({launchedBiosimilars.length})
+                      letterSpacing: "0.08em", margin: "0 0 16px" }}>
+            Launched &amp; Approved Biosimilars — Globally ({launchedBiosimilars.useu.length + launchedBiosimilars.row.length})
           </p>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ color: "var(--color-text-secondary)", textAlign: "left" }}>
-                {["Company", "Phase", "Markets", "Indications", "Reported by"].map((h) => (
-                  <th key={h} style={{ paddingBottom: 8, fontWeight: 500, paddingRight: 16 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {launchedBiosimilars.map((e) => (
-                <tr key={e.key} style={{ borderTop: "0.5px solid var(--color-border-tertiary)" }}>
-                  <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-primary)", fontWeight: 500 }}>
-                    {e.company}
-                  </td>
-                  <td style={{ padding: "8px 16px 8px 0" }}>
-                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: "var(--border-radius-md)",
-                                   background: "var(--color-background-success)", color: "var(--color-text-success)",
-                                   border: "0.5px solid var(--color-border-success)", whiteSpace: "nowrap" }}>
-                      {e.phase}
-                    </span>
-                  </td>
-                  <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-secondary)" }}>
-                    {e.markets.join(", ") || "—"}
-                  </td>
-                  <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-secondary)" }}>
-                    {e.indications.slice(0, 2).join(", ")}
-                    {e.indications.length > 2 && <span style={{ color: "var(--color-text-info)" }}> +{e.indications.length - 2}</span>}
-                    {e.indications.length === 0 && "—"}
-                  </td>
-                  <td style={{ padding: "8px 0", color: "var(--color-text-secondary)", fontSize: 12 }}>
-                    {e.sources.join(", ")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+          {[
+            { label: "US / EU", entries: launchedBiosimilars.useu, accent: "#1d4ed8" },
+            { label: "Rest of World", entries: launchedBiosimilars.row, accent: "#6b7280" },
+          ].map(({ label, entries, accent }) => entries.length > 0 && (
+            <div key={label} style={{ marginBottom: "1.25rem" }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: accent, textTransform: "uppercase",
+                          letterSpacing: "0.06em", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent }} />
+                {label} — {entries.length} compan{entries.length === 1 ? "y" : "ies"}
+              </p>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ color: "var(--color-text-secondary)", textAlign: "left" }}>
+                    {["Company", "Phase", "Markets", "Indications", "Reported by"].map((h) => (
+                      <th key={h} style={{ paddingBottom: 6, fontWeight: 500, paddingRight: 16, fontSize: 11 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((e) => (
+                    <tr key={e.key} style={{ borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+                      <td style={{ padding: "7px 16px 7px 0", color: "var(--color-text-primary)", fontWeight: 500 }}>
+                        {e.company}
+                      </td>
+                      <td style={{ padding: "7px 16px 7px 0" }}>
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: "var(--border-radius-md)",
+                                       background: "var(--color-background-success)", color: "var(--color-text-success)",
+                                       border: "0.5px solid var(--color-border-success)", whiteSpace: "nowrap" }}>
+                          {e.phase}
+                        </span>
+                      </td>
+                      <td style={{ padding: "7px 16px 7px 0", color: "var(--color-text-secondary)" }}>
+                        {e.markets.join(", ") || "—"}
+                      </td>
+                      <td style={{ padding: "7px 16px 7px 0", color: "var(--color-text-secondary)" }}>
+                        {e.indications.slice(0, 2).join(", ")}
+                        {e.indications.length > 2 && <span style={{ color: "var(--color-text-info)" }}> +{e.indications.length - 2}</span>}
+                        {e.indications.length === 0 && "—"}
+                      </td>
+                      <td style={{ padding: "7px 0", color: "var(--color-text-secondary)", fontSize: 12 }}>
+                        {e.sources.join(", ")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
         </div>
       )}
 
@@ -417,14 +461,11 @@ export default function RacePanel({ accessKey }) {
                     {r.error ? (
                       <p style={{ fontSize: 12, color: "var(--color-text-danger)", margin: 0 }}>Error: {r.error}</p>
                     ) : (
-                      <div style={{ position: "relative", maxHeight: 320, overflow: "hidden" }}>
-                        <pre style={{ fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.7,
-                                      whiteSpace: "pre-wrap", color: "var(--color-text-secondary)", margin: 0 }}>
-                          {formatBrief(r.output)}
-                        </pre>
-                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 40,
-                                      background: "linear-gradient(transparent, var(--color-background-primary))" }} />
-                      </div>
+                      <pre style={{ fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.7,
+                                    whiteSpace: "pre-wrap", color: "var(--color-text-secondary)", margin: 0,
+                                    maxHeight: 520, overflowY: "auto" }}>
+                        {formatBrief(r.output)}
+                      </pre>
                     )}
                   </div>
                 );
