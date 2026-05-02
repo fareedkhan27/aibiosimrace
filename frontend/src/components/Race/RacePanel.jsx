@@ -129,6 +129,37 @@ export default function RacePanel({ accessKey }) {
   const winner     = result?.rankings?.find((r) => r.model_key === result.winner);
   const winnerMeta = winner ? MODEL_META[winner.model_key] : null;
 
+  const launchedBiosimilars = (() => {
+    if (!result) return [];
+    const seenKeys = new Set();
+    const entries  = [];
+    (result.rankings || []).forEach((r) => {
+      const modelAlias = MODEL_META[r.model_key]?.alias;
+      (r.output?.pipeline || []).forEach((p) => {
+        const phase = (p.phase || "").toLowerCase();
+        if (!phase.includes("launch") && !phase.includes("approved")) return;
+        const key = (p.company || "").toLowerCase().trim();
+        if (!key) return;
+        if (seenKeys.has(key)) {
+          const existing = entries.find((e) => e.key === key);
+          if (existing && modelAlias && !existing.sources.includes(modelAlias))
+            existing.sources.push(modelAlias);
+          return;
+        }
+        seenKeys.add(key);
+        entries.push({
+          key,
+          company:     p.company,
+          phase:       p.phase,
+          markets:     p.markets || [],
+          indications: p.indications || [],
+          sources:     [modelAlias].filter(Boolean),
+        });
+      });
+    });
+    return entries.sort((a, b) => a.company.localeCompare(b.company));
+  })();
+
   return (
     <div style={{ padding: "1.5rem 0" }}>
       {/* Header */}
@@ -262,6 +293,53 @@ export default function RacePanel({ accessKey }) {
               </span>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Launched & Approved Globally */}
+      {result && launchedBiosimilars.length > 0 && (
+        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)",
+                      borderRadius: "var(--border-radius-lg)", padding: "1.25rem", marginBottom: "1.5rem" }}>
+          <p style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase",
+                      letterSpacing: "0.08em", margin: "0 0 12px" }}>
+            Launched &amp; Approved Biosimilars — Globally ({launchedBiosimilars.length})
+          </p>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ color: "var(--color-text-secondary)", textAlign: "left" }}>
+                {["Company", "Phase", "Markets", "Indications", "Reported by"].map((h) => (
+                  <th key={h} style={{ paddingBottom: 8, fontWeight: 500, paddingRight: 16 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {launchedBiosimilars.map((e) => (
+                <tr key={e.key} style={{ borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+                  <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-primary)", fontWeight: 500 }}>
+                    {e.company}
+                  </td>
+                  <td style={{ padding: "8px 16px 8px 0" }}>
+                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: "var(--border-radius-md)",
+                                   background: "var(--color-background-success)", color: "var(--color-text-success)",
+                                   border: "0.5px solid var(--color-border-success)", whiteSpace: "nowrap" }}>
+                      {e.phase}
+                    </span>
+                  </td>
+                  <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-secondary)" }}>
+                    {e.markets.join(", ") || "—"}
+                  </td>
+                  <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-secondary)" }}>
+                    {e.indications.slice(0, 2).join(", ")}
+                    {e.indications.length > 2 && <span style={{ color: "var(--color-text-info)" }}> +{e.indications.length - 2}</span>}
+                    {e.indications.length === 0 && "—"}
+                  </td>
+                  <td style={{ padding: "8px 0", color: "var(--color-text-secondary)", fontSize: 12 }}>
+                    {e.sources.join(", ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

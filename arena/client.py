@@ -43,7 +43,7 @@ async def _call_openrouter(model_key: str, prompt: str, client: httpx.AsyncClien
             ],
             "response_format": {"type": "json_object"},
             "temperature": 0.1,
-            "max_tokens":  2000,
+            "max_tokens":  4000,
         },
         timeout=45.0,
     )
@@ -83,7 +83,7 @@ async def _call_anthropic_demo(model_key: str, prompt: str, client: httpx.AsyncC
         },
         json={
             "model":      ANTHROPIC_DEMO_MODEL,
-            "max_tokens": 2000,
+            "max_tokens": 4000,
             "system":     meta["system"],
             "messages":   [{"role": "user", "content": prompt}],
         },
