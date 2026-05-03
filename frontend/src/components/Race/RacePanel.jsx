@@ -10,9 +10,13 @@ const MODEL_META = {
   challenger: { label: "The Challenger", alias: "Llama 3.1 70B", color: "#993C1D" },
 };
 
+// Models sometimes return fields as strings instead of arrays. Never throw on bad shapes.
+const toArr = (v) => Array.isArray(v) ? v : (v != null ? [String(v)] : []);
+const toStr = (v) => (v != null ? String(v) : "");
+
 function formatBrief(d) {
   if (!d) return "No data extracted.";
-  const pipe = d.pipeline || [];
+  const pipe = toArr(d.pipeline);
   const sep  = "─".repeat(48);
   let t = "";
   t += `BRAND          ${d.brand || "—"}\n`;
@@ -22,26 +26,27 @@ function formatBrief(d) {
   t += `PATENT EXPIRY  ${d.patent_expiry || "Not identified"}\n`;
   t += `AREA           ${d.therapeutic_area || "—"}\n`;
   t += `CONFIDENCE     ${d.confidence || "—"}\n\n`;
-  if ((d.competitors || []).length) {
+  const competitors = toArr(d.competitors);
+  if (competitors.length) {
     t += `REFERENCE COMPETITORS\n`;
-    d.competitors.forEach((c) => { t += `  · ${c}\n`; });
+    competitors.forEach((c) => { t += `  · ${toStr(c)}\n`; });
     t += "\n";
   }
   t += `BIOSIMILAR PIPELINE — ${pipe.length} developer(s) identified\n${sep}\n`;
   pipe.forEach((p) => {
     t += `\n${p.company || "Unknown"}\n`;
-    t += `  Indications   ${(p.indications || []).join(", ") || "—"}\n`;
+    t += `  Indications   ${toArr(p.indications).map(toStr).join(", ") || "—"}\n`;
     t += `  Phase         ${p.phase || "—"}\n`;
     if (p.trial_id && p.trial_id !== "null") t += `  Trial ID      ${p.trial_id}\n`;
     if (p.est_trial_completion) t += `  Trial end     ${p.est_trial_completion}\n`;
-    const mkt = (p.markets || []).join(", ") || "—";
+    const mkt = toArr(p.markets).map(toStr).join(", ") || "—";
     if (p.est_launch) t += `  Est. launch   ${p.est_launch}  |  Markets: ${mkt}\n`;
     else              t += `  Markets       ${mkt}\n`;
     t += `  Probability   ${p.probability}%  [${p.source || "—"}]\n`;
     if (p.note) t += `  Note          ${p.note}\n`;
   });
   t += `\n${sep}\nPROVENANCE\n`;
-  (d.provenance || []).forEach((s) => { t += `  · ${s}\n`; });
+  toArr(d.provenance).forEach((s) => { t += `  · ${toStr(s)}\n`; });
   return t;
 }
 
@@ -152,7 +157,7 @@ export default function RacePanel({ accessKey }) {
   const _US_SIGNALS = ["us", "usa", "united states", "fda", "purple book"];
   const _EU_SIGNALS = ["eu", "europe", "european union", "ema", "uk", "mhra", "united kingdom"];
   const _isUSEU = (markets) => {
-    const norm = (markets || []).map((m) => m.toLowerCase());
+    const norm = toArr(markets).map((m) => toStr(m).toLowerCase());
     return norm.some((m) => [..._US_SIGNALS, ..._EU_SIGNALS].some((s) => m.includes(s)));
   };
 
@@ -160,19 +165,19 @@ export default function RacePanel({ accessKey }) {
     if (!result) return { useu: [], row: [] };
     const useu = [], row = [];
     const seenUSEU = new Set(), seenROW = new Set();
-    (result.rankings || []).forEach((r) => {
+    toArr(result.rankings).forEach((r) => {
       const alias = MODEL_META[r.model_key]?.alias;
-      (r.output?.pipeline || []).forEach((p) => {
-        const phase = (p.phase || "").toLowerCase();
+      toArr(r.output?.pipeline).forEach((p) => {
+        const phase = toStr(p.phase).toLowerCase();
         if (!phase.includes("launch") && !phase.includes("approved")) return;
-        const key = (p.company || "").toLowerCase().trim();
+        const key = toStr(p.company).toLowerCase().trim();
         if (!key) return;
         const entry = {
           key,
-          company:     p.company,
-          phase:       p.phase,
-          markets:     p.markets || [],
-          indications: p.indications || [],
+          company:     toStr(p.company) || "Unknown",
+          phase:       toStr(p.phase),
+          markets:     toArr(p.markets).map(toStr),
+          indications: toArr(p.indications).map(toStr),
           sources:     [alias].filter(Boolean),
         };
         if (_isUSEU(p.markets)) {
@@ -286,7 +291,7 @@ export default function RacePanel({ accessKey }) {
                       {rankEntry.score?.total ?? 0} pts
                     </p>
                     <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>
-                      {(rankEntry.output?.pipeline || []).length} developers · {(rankEntry.output?.provenance || []).length} sources
+                      {toArr(rankEntry.output?.pipeline).length} developers · {toArr(rankEntry.output?.provenance).length} sources
                     </p>
                   </>
                 )}
@@ -307,9 +312,9 @@ export default function RacePanel({ accessKey }) {
             ★ {winnerMeta.label} ({winnerMeta.alias}) takes the title — {winner.score?.total} pts
           </p>
           <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 12px" }}>
-            {(winner.output?.pipeline || []).length} biosimilar developers
-            · {(winner.output?.provenance || []).length} provenance sources
-            · {(winner.output?.pipeline || []).filter((p) => p.trial_id && p.trial_id !== "null").length} trial IDs
+            {toArr(winner.output?.pipeline).length} biosimilar developers
+            · {toArr(winner.output?.provenance).length} provenance sources
+            · {toArr(winner.output?.pipeline).filter((p) => p.trial_id && p.trial_id !== "null").length} trial IDs
             · {winner.elapsed?.toFixed(1)}s
             {result.consensus && <span style={{ marginLeft: 8, color: winnerMeta.color, fontWeight: 500 }}>✓ Consensus</span>}
           </p>
