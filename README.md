@@ -16,7 +16,7 @@ Enter a brand drug name (Opdivo, Herceptin, Humira…). Select 2–5 AI models. 
 - Provenance citations for every claim — no hallucinations allowed
 - Launched and approved biosimilars split by **US / EU** and **Rest of World**
 
-Each model's response is scored across 8 factors. The highest-scoring model wins. A consensus flag fires when ≥2 models independently identify the same lead developer.
+Each model's response is scored across 8 factors. The highest-scoring model wins. A consensus flag fires when ≥2 models independently identify the same lead developer. Every live race is saved to a persistent **Race History** log.
 
 ---
 
@@ -85,11 +85,7 @@ cd frontend && npm install && npm run build && cd ..
 
 ### 2. Configure environment
 
-```bash
-cp .env.example .env
-```
-
-Edit `.env`:
+Create a `.env` file in the project root:
 
 ```
 USE_OPENROUTER=false          # true for production multi-model
@@ -99,12 +95,7 @@ ACCESS_KEY=your-secret-here
 DATABASE_URL=postgresql://localhost/biosim_arena
 ```
 
-Create a `frontend/.env.local` so the key is baked into the build:
-
-```bash
-echo "VITE_ACCESS_KEY=your-secret-here" > frontend/.env.local
-cd frontend && npm run build && cd ..
-```
+> **Access key:** The frontend prompts for the access key on first visit and saves it to `localStorage`. No build-time env var is needed for the frontend — just set `ACCESS_KEY` on the backend.
 
 ### 3. Initialise database
 
@@ -119,7 +110,7 @@ psql biosim_arena -f db/schema_race.sql
 uvicorn main:app --reload --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000).
+Open [http://localhost:8000](http://localhost:8000). Enter your `ACCESS_KEY` when prompted.
 
 ### Frontend hot reload (optional)
 
@@ -166,11 +157,40 @@ Headers: `x-access-key: <ACCESS_KEY>`, `Content-Type: application/json`
 `model_keys`: 2–5 values from `analyst | hunter | scanner | strategist | challenger`  
 `region`: optional — `CEE | LATAM | MEA | APAC` or omit for global
 
-**Response** includes `winner`, `winner_score`, `rankings` (scored per model), `consensus` flag, and full pipeline data.
+**Response** includes `winner`, `winner_score`, `rankings` (scored per model), `consensus` flag, full pipeline data, and `source` (`live` or `cache`).
+
+### `GET /api/history`
+
+Returns the 20 most recent live races (cache hits are not recorded).
+
+Headers: `x-access-key: <ACCESS_KEY>`
+
+Query params: `limit` (max 100, default 20), `offset` (default 0)
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "brand": "Opdivo",
+      "region": "",
+      "model_keys": ["analyst", "hunter", "scanner"],
+      "winner": "analyst",
+      "winner_score": 145,
+      "rankings": [...],
+      "consensus": false,
+      "elapsed_s": 11.4,
+      "raced_at": "2026-05-03T10:30:00+00:00"
+    }
+  ],
+  "limit": 20,
+  "offset": 0
+}
+```
 
 ### `GET /api/health`
 
-Returns `{"status": "ok"}`.
+Returns `{"status": "ok"}` plus model list and DB/OpenRouter status.
 
 ---
 
@@ -186,14 +206,17 @@ Returns `{"status": "ok"}`.
 | `USE_OPENROUTER` | `true` |
 | `OPENROUTER_API_KEY` | your key |
 | `ACCESS_KEY` | your secret |
-| `DATABASE_URL` | from Railway Postgres service |
-| `VITE_ACCESS_KEY` | same as `ACCESS_KEY` |
+| `DATABASE_URL` | auto-set by Railway Postgres service |
 | `ARENA_COST_DAILY_LIMIT_USD` | `20` |
 
-5. **Build command:** `pip install -r requirements.txt && cd frontend && npm install && npm run build`
-6. **Start command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
-7. Apply schema once: paste `db/schema_race.sql` into Railway's Postgres query tab
-8. Add custom domain `aiqbiq.com` → point your DNS CNAME to the Railway-provided value
+> No `VITE_ACCESS_KEY` needed — the frontend prompts for the key at first visit and persists it in the browser.
+
+5. Railway auto-detects `nixpacks.toml` — no build command needed. Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+6. Apply schema once via Railway's Postgres query tab:
+   ```sql
+   -- paste contents of db/schema_race.sql
+   ```
+7. Add custom domain `aiqbiq.com` → point your DNS CNAME to the Railway-provided value
 
 ---
 
@@ -207,7 +230,20 @@ Returns `{"status": "ok"}`.
 
 Default budget ceiling: $20/day (~600 full-field races). Configurable via `ARENA_COST_DAILY_LIMIT_USD`.
 
-Results are cached for 7 days per brand + model combination.
+Results are cached for 7 days per brand + model combination. Cache hits do not count against the daily budget.
+
+---
+
+## Data persistence
+
+| Store | What's saved | Overwritten? |
+|---|---|---|
+| `race_results` | Last result per brand + model set | Yes — 7-day cache, upserts on conflict |
+| `race_history` | Every live race, append-only | Never — full history log |
+| `audit_log` | Summary of every race (winner, score, elapsed) | Never |
+| `race_daily_budget` | Daily spend tracker | Resets at UTC midnight |
+
+The **Race History** section in the UI loads automatically and shows the 20 most recent races.
 
 ---
 
@@ -215,11 +251,11 @@ Results are cached for 7 days per brand + model combination.
 
 ```
 arena/          model registry, prompt builder, client, normalizer, scorer
-db/             schema, connection pool, cache, audit log, budget guard
-routes/         POST /api/race endpoint
+db/             schema, connection pool, cache, history, audit log, budget guard
+routes/         POST /api/race, GET /api/history endpoints
 frontend/src/   React app — ModelSelector, RacePanel, App
 tests/          unit + integration tests
-Procfile        Railway start command
+nixpacks.toml   Railway build config (Python-only)
 ```
 
 ---
