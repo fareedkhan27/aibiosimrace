@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import ModelSelector from "./ModelSelector";
 
@@ -94,11 +94,13 @@ export default function RacePanel({ accessKey, onUnauthorized }) {
   const [brand,    setBrand]    = useState("");
   const [region,   setRegion]   = useState("");
   const [selected, setSelected] = useState(["analyst", "hunter", "scanner"]);
-  const [racing,   setRacing]   = useState(false);
-  const [result,   setResult]   = useState(null);
-  const [error,    setError]    = useState(null);
-  const [tab,      setTab]      = useState("brief");
-  const [history,  setHistory]  = useState([]);
+  const [racing,      setRacing]      = useState(false);
+  const [result,      setResult]      = useState(null);
+  const [error,       setError]       = useState(null);
+  const [tab,         setTab]         = useState("brief");
+  const [history,     setHistory]     = useState([]);
+  const [raceHistory, setRaceHistory] = useState(null);
+  const [histLoading, setHistLoading] = useState(false);
 
   const toggleModel = (id) => {
     setSelected((prev) => {
@@ -106,6 +108,25 @@ export default function RacePanel({ accessKey, onUnauthorized }) {
       return prev.length < 5 ? [...prev, id] : prev;
     });
   };
+
+  const loadHistory = async () => {
+    setHistLoading(true);
+    try {
+      const resp = await fetch("/api/history?limit=20", {
+        headers: { "x-access-key": accessKey },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setRaceHistory(data.items || []);
+      }
+    } catch (_) {
+      // history is non-critical — silently fail
+    } finally {
+      setHistLoading(false);
+    }
+  };
+
+  useEffect(() => { loadHistory(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startRace = async () => {
     if (!brand.trim() || selected.length < 2) return;
@@ -126,6 +147,7 @@ export default function RacePanel({ accessKey, onUnauthorized }) {
       }
       const data = await resp.json();
       setResult(data);
+      loadHistory();
       setHistory((prev) => {
         const updated = [...prev];
         (data.rankings || []).forEach((r) => {
@@ -525,6 +547,77 @@ export default function RacePanel({ accessKey, onUnauthorized }) {
           )}
         </>
       )}
+      {/* Race History */}
+      <div style={{ marginTop: "2.5rem", paddingTop: "1.5rem", borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+          <p style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase",
+                      letterSpacing: "0.08em", margin: 0 }}>
+            Race History
+          </p>
+          <button onClick={loadHistory} disabled={histLoading}
+                  style={{ fontSize: 11, padding: "3px 10px", background: "var(--color-background-secondary)",
+                           border: "0.5px solid var(--color-border-tertiary)", color: "var(--color-text-secondary)" }}>
+            {histLoading ? "Loading…" : "Refresh ↻"}
+          </button>
+        </div>
+
+        {histLoading && raceHistory === null && (
+          <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>Loading…</p>
+        )}
+        {!histLoading && raceHistory !== null && raceHistory.length === 0 && (
+          <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
+            No races recorded yet. Results will appear here after each live race.
+          </p>
+        )}
+        {raceHistory && raceHistory.length > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ color: "var(--color-text-secondary)", textAlign: "left" }}>
+                {["Date", "Brand", "Region", "Winner", "Score", "Models", "Time"].map((h) => (
+                  <th key={h} style={{ paddingBottom: 8, fontWeight: 500, paddingRight: 16, fontSize: 11 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {raceHistory.map((h) => {
+                const wMeta = MODEL_META[h.winner];
+                return (
+                  <tr key={h.id} style={{ borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+                    <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-secondary)", whiteSpace: "nowrap", fontSize: 12 }}>
+                      {new Date(h.raced_at).toLocaleDateString()}{" "}
+                      {new Date(h.raced_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-primary)", fontWeight: 500 }}>
+                      {h.brand}
+                    </td>
+                    <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-secondary)" }}>
+                      {h.region || "Global"}
+                    </td>
+                    <td style={{ padding: "8px 16px 8px 0" }}>
+                      {wMeta ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--color-text-primary)" }}>
+                          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+                                         background: wMeta.color, flexShrink: 0 }} />
+                          {wMeta.alias}
+                        </span>
+                      ) : (h.winner || "—")}
+                    </td>
+                    <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-secondary)" }}>
+                      {h.winner_score ?? "—"}
+                    </td>
+                    <td style={{ padding: "8px 16px 8px 0", color: "var(--color-text-secondary)" }}>
+                      {h.model_keys.length}
+                    </td>
+                    <td style={{ padding: "8px 0", color: "var(--color-text-secondary)" }}>
+                      {h.elapsed_s != null ? `${h.elapsed_s.toFixed(1)}s` : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

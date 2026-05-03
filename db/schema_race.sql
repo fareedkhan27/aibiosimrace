@@ -61,3 +61,21 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_audit_ts     ON audit_log (logged_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log (action);
+
+-- Append-only race history (one row per live race, never overwritten)
+CREATE TABLE IF NOT EXISTS race_history (
+    id           SERIAL PRIMARY KEY,
+    brand        TEXT NOT NULL,
+    region       TEXT,
+    model_keys   TEXT[] NOT NULL,
+    winner       TEXT,
+    winner_score INT,
+    winner_data  JSONB,
+    rankings     JSONB NOT NULL DEFAULT '[]',
+    consensus    BOOLEAN DEFAULT FALSE,
+    elapsed_s    NUMERIC(6,2),
+    raced_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_history_brand ON race_history (brand);
+CREATE INDEX IF NOT EXISTS idx_history_ts    ON race_history (raced_at DESC);

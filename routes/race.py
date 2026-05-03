@@ -12,6 +12,7 @@ from arena.model_registry  import MODEL_REGISTRY
 from db.cache              import cache_get, cache_set
 from db.audit              import log_audit_pg
 from db.budget             import check_and_record_spend
+from db.history            import write_history
 
 router     = APIRouter()
 ACCESS_KEY = os.getenv("ACCESS_KEY", "")
@@ -59,6 +60,7 @@ async def race_endpoint(req: RaceRequest, x_access_key: str = Header(default="")
     result["elapsed_s"]  = elapsed
 
     await cache_set(cache_key, result, ttl_hours=168)
+    await write_history(result)
     await log_audit_pg(
         action="race",
         input_data=req.model_dump(),

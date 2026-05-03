@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from routes.race       import router as race_router
+from routes.history    import router as history_router
 from db.connection     import get_pool, close_pool
 from arena.model_registry import MODEL_REGISTRY
 
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Biosimilar AI Race Arena", lifespan=lifespan)
 app.include_router(race_router)
+app.include_router(history_router)
 
 
 @app.get("/api/health")
