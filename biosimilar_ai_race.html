@@ -1,0 +1,363 @@
+
+<h2 class="sr-only">Biosimilar AI Race — three AI model personas compete to extract the most accurate biosimilar pipeline intelligence from a brand name query</h2>
+
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.race-bar{height:4px;background:var(--color-border-tertiary);border-radius:2px;overflow:hidden;margin:10px 0 14px}
+.race-bar-fill{height:100%;width:0%;border-radius:2px;transition:width 0.4s ease}
+.racer-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;border-left:3px solid transparent}
+.racer-card.winner-card{background:var(--color-background-secondary)}
+.stat-line{font-size:12px;color:var(--color-text-secondary);margin-top:2px}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+.mono{font-family:var(--font-mono);font-size:12px;line-height:1.9;white-space:pre-wrap;color:var(--color-text-primary)}
+.section-label{font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin:0 0 12px}
+.winner-bar{height:3px;border-radius:2px;margin-bottom:12px}
+.insight-box{background:var(--color-background-secondary);border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);padding:0.75rem 1rem;margin-top:1rem;font-size:13px;color:var(--color-text-secondary);line-height:1.6}
+</style>
+
+<div style="padding:1.5rem 0">
+
+  <div style="margin-bottom:1.75rem">
+    <p class="section-label" style="margin-bottom:4px">Biosimilar Surveillance Arena</p>
+    <p style="font-size:22px;font-weight:500;color:var(--color-text-primary);margin:0 0 4px">The AI Race</p>
+    <p style="font-size:14px;color:var(--color-text-secondary);margin:0">Three models. One query. The smartest wins the title.</p>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:2rem;align-items:center">
+    <input id="brand-input" type="text" placeholder="Enter brand name — e.g. Opdivo, Keytruda, Herceptin..." style="flex:1;font-size:14px" />
+    <button id="race-btn" onclick="startRace()" style="white-space:nowrap;font-size:14px">Start the Race ↗</button>
+  </div>
+
+  <div id="race-zone" style="display:none">
+
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:1.5rem">
+
+      <div id="card-A" class="racer-card" style="border-left-color:#3266ad">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px">
+          <p style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:0">The Analyst</p>
+          <span id="status-A" class="badge">Standby</span>
+        </div>
+        <p style="font-size:14px;font-weight:500;color:var(--color-text-primary);margin:0 0 4px">Claude</p>
+        <p style="font-size:11px;color:var(--color-text-secondary);margin:0 0 6px">Precision · Registry-first · Audit-ready</p>
+        <div class="race-bar"><div id="bar-A" class="race-bar-fill" style="background:#3266ad"></div></div>
+        <div id="score-A" style="font-size:22px;font-weight:500;color:var(--color-text-primary);display:none"></div>
+        <div id="stats-A" class="stat-line" style="display:none"></div>
+      </div>
+
+      <div id="card-B" class="racer-card" style="border-left-color:#0F6E56">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px">
+          <p style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:0">The Hunter</p>
+          <span id="status-B" class="badge">Standby</span>
+        </div>
+        <p style="font-size:14px;font-weight:500;color:var(--color-text-primary);margin:0 0 4px">GPT-4o</p>
+        <p style="font-size:11px;color:var(--color-text-secondary);margin:0 0 6px">Aggressive · Launch-focused · Global reach</p>
+        <div class="race-bar"><div id="bar-B" class="race-bar-fill" style="background:#0F6E56"></div></div>
+        <div id="score-B" style="font-size:22px;font-weight:500;color:var(--color-text-primary);display:none"></div>
+        <div id="stats-B" class="stat-line" style="display:none"></div>
+      </div>
+
+      <div id="card-C" class="racer-card" style="border-left-color:#854F0B">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px">
+          <p style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:0">The Scanner</p>
+          <span id="status-C" class="badge">Standby</span>
+        </div>
+        <p style="font-size:14px;font-weight:500;color:var(--color-text-primary);margin:0 0 4px">Gemini</p>
+        <p style="font-size:11px;color:var(--color-text-secondary);margin:0 0 6px">Broad coverage · Emerging markets · WHO-aware</p>
+        <div class="race-bar"><div id="bar-C" class="race-bar-fill" style="background:#854F0B"></div></div>
+        <div id="score-C" style="font-size:22px;font-weight:500;color:var(--color-text-primary);display:none"></div>
+        <div id="stats-C" class="stat-line" style="display:none"></div>
+      </div>
+
+    </div>
+
+    <div id="winner-banner" style="display:none;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1.5rem">
+      <p class="section-label">Race complete — champion crowned</p>
+      <p id="winner-headline" style="font-size:20px;font-weight:500;color:var(--color-text-primary);margin:0 0 4px"></p>
+      <p id="winner-sub" style="font-size:13px;color:var(--color-text-secondary);margin:0 0 12px"></p>
+      <div id="score-breakdown" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+    </div>
+
+    <div id="brief-zone" style="display:none">
+      <p class="section-label">Intelligence brief — winner output</p>
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem">
+        <div id="brief-content" class="mono"></div>
+        <div id="ai-insight" class="insight-box" style="display:none">
+          <p style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px;font-weight:500">AI insight — beyond the data</p>
+          <div id="insight-text" style="color:var(--color-text-primary)"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="all-briefs-zone" style="display:none;margin-top:1.5rem">
+      <p class="section-label">All competitor extractions</p>
+      <div id="all-briefs" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+const PERSONAS = [
+  {
+    id:'A', label:'The Analyst', alias:'Claude',
+    color:'#3266ad',
+    system:`You are a precision biosimilar intelligence analyst. Your strength is registry-verified evidence — NCT IDs, CTIS IDs, EMA pipeline entries, WHO prequalification. Every pipeline entry must cite a verifiable source. You cross-reference ClinicalTrials.gov, EMA biosimilar pipeline, FDA Purple Book, and company investor disclosures. You estimate patent expiry from originator USPTO/EPO filings. You flag primary and secondary patents separately. You note biosimilar pathway used (EMA similar biological medicinal product pathway vs FDA 351(k)). Return ONLY valid JSON, no markdown.`
+  },
+  {
+    id:'B', label:'The Hunter', alias:'GPT-4o',
+    color:'#0F6E56',
+    system:`You are an aggressive biosimilar market intelligence hunter. Your mission: find every global developer pursuing a biosimilar of the target molecule. Cast the widest net — Phase I programs, announced CDMO partnerships, licensing deals, Asian manufacturers, Indian generics companies. Your strength is launch timing prediction and first-mover analysis. Identify which developers have tender experience in key markets, which have existing commercial infrastructure, which are partnered with regional distributors. Note interchangeability designations where relevant. Return ONLY valid JSON, no markdown.`
+  },
+  {
+    id:'C', label:'The Scanner', alias:'Gemini',
+    color:'#854F0B',
+    system:`You are a global biosimilar surveillance scanner with geographic breadth as your core edge. Your mission: map biosimilar developers across ALL regions — not just EU/US but CEE, Latin America (ANVISA/ANMAT/INVIMA pathways), Middle East, Africa, and APAC. Identify WHO-prequalified biosimilar manufacturers. Flag local champions approved in emerging markets before global expansion. Track indication-specific development programs. Note regulatory exclusivity windows per region. Flag biosimilars that have launched in reference markets but not yet in local markets — these represent the highest near-term risk. Return ONLY valid JSON, no markdown.`
+  }
+];
+
+const USER_PROMPT = brand => `Extract comprehensive biosimilar competitive intelligence for the reference biologic: "${brand}"
+
+Return ONLY a single valid JSON object with this exact structure:
+{
+  "brand": "brand name as given",
+  "inn": "international nonproprietary name",
+  "originator": "originator company name",
+  "patent_expiry": "YYYY-MM or YYYY or estimated range or null",
+  "mechanism": "one concise MOA sentence",
+  "therapeutic_area": "oncology | immunology | etc",
+  "competitors": ["reference biologic competitors — not biosimilars — name (company)"],
+  "pipeline": [
+    {
+      "company": "developer company name",
+      "indications": ["approved or targeted indications"],
+      "phase": "Preclinical|Phase I|Phase II|Phase III|Approved|Launched",
+      "trial_id": "NCT or CTIS ID or null",
+      "est_trial_completion": "YYYY-MM or null",
+      "est_launch": "Q# YYYY or YYYY or H# YYYY or null",
+      "markets": ["country or region codes"],
+      "probability": 55,
+      "source": "ClinicalTrials|CTIS|EMA|FDA|WHO|Company|Press|Inferred",
+      "note": "single most important competitive fact, max 90 chars"
+    }
+  ],
+  "provenance": ["specific source names with detail"],
+  "ai_insight": "one paragraph — what pattern or risk does this pipeline reveal that a human analyst might miss? be specific, cite data from the pipeline.",
+  "confidence": "High|Moderate|Low"
+}
+
+Critical rules:
+- pipeline: include ALL known developers, aim for completeness over caution
+- probability MUST respect calibration: Phase III=35-90%, Phase II=10-40%, Phase I=0-10%, Approved=55-85%, Launched=40-80%
+- est_launch must reflect local market launch, not reference country
+- Return ONLY the JSON object. No preamble, no markdown fences, no explanation.`;
+
+let raceStart = null;
+let finishOrder = [];
+let allScored = [];
+
+function scoreResult(d) {
+  if (!d || !d.pipeline) return { total: 0, bd: {} };
+  const bd = {};
+  bd.developers = Math.min((d.pipeline||[]).length * 12, 84);
+  bd.provenance  = Math.min((d.provenance||[]).length * 8, 40);
+  const qYr = (d.pipeline||[]).filter(p => p.est_launch && /^[QH][1-4]\s+\d{4}/.test(p.est_launch)).length;
+  bd.launches    = Math.min(qYr * 6, 30);
+  const hasId = (d.pipeline||[]).filter(p => p.trial_id && p.trial_id !== 'null' && p.trial_id).length;
+  bd.trial_ids   = Math.min(hasId * 7, 35);
+  bd.patent      = (d.patent_expiry && d.patent_expiry !== 'null') ? 10 : 0;
+  bd.competitors = Math.min((d.competitors||[]).length * 3, 15);
+  bd.insight     = d.ai_insight && d.ai_insight.length > 60 ? 10 : 0;
+  bd.speed       = 0;
+  const total = Object.values(bd).reduce((a,b) => a+b, 0);
+  return { total, bd };
+}
+
+function formatBrief(d) {
+  if (!d) return 'No data extracted.';
+  const pipe = d.pipeline || [];
+  const sep = '─'.repeat(48);
+  let t = '';
+  t += `BRAND          ${d.brand || '—'}\n`;
+  t += `INN            ${d.inn || '—'}\n`;
+  t += `ORIGINATOR     ${d.originator || '—'}\n`;
+  t += `MECHANISM      ${d.mechanism || '—'}\n`;
+  t += `PATENT EXPIRY  ${d.patent_expiry || 'Not identified'}\n`;
+  t += `AREA           ${d.therapeutic_area || '—'}\n`;
+  t += `CONFIDENCE     ${d.confidence || '—'}\n\n`;
+  if ((d.competitors||[]).length) {
+    t += `REFERENCE COMPETITORS\n`;
+    d.competitors.forEach(c => { t += `  · ${c}\n`; });
+    t += '\n';
+  }
+  t += `BIOSIMILAR PIPELINE — ${pipe.length} developer(s) identified\n${sep}\n`;
+  pipe.forEach(p => {
+    t += `\n${p.company || 'Unknown'}\n`;
+    t += `  Indications   ${(p.indications||[]).join(', ') || '—'}\n`;
+    t += `  Phase         ${p.phase || '—'}\n`;
+    if (p.trial_id && p.trial_id !== 'null') t += `  Trial ID      ${p.trial_id}\n`;
+    if (p.est_trial_completion) t += `  Trial end     ${p.est_trial_completion}\n`;
+    const mkt = (p.markets||[]).join(', ') || '—';
+    if (p.est_launch) t += `  Est. launch   ${p.est_launch}  |  Markets: ${mkt}\n`;
+    else t += `  Markets       ${mkt}\n`;
+    t += `  Probability   ${p.probability}%  [${p.source || '—'}]\n`;
+    if (p.note) t += `  Note          ${p.note}\n`;
+  });
+  t += `\n${sep}\n`;
+  t += `PROVENANCE\n`;
+  (d.provenance||[]).forEach(s => { t += `  · ${s}\n`; });
+  return t;
+}
+
+function mkBadge(label, val) {
+  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 10px;border-radius:var(--border-radius-md);background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary)"><span style="font-weight:500;color:var(--color-text-primary)">${val}</span> ${label}</span>`;
+}
+
+async function callModel(persona, brand) {
+  const barEl = document.getElementById('bar-' + persona.id);
+  const statusEl = document.getElementById('status-' + persona.id);
+  statusEl.textContent = 'Racing...';
+  statusEl.style.background = 'var(--color-background-info)';
+  statusEl.style.color = 'var(--color-text-info)';
+  statusEl.style.borderColor = 'var(--color-border-info)';
+
+  let prog = 0;
+  const ticker = setInterval(() => {
+    prog = Math.min(prog + (Math.random() * 9 + 3), 88);
+    barEl.style.width = prog + '%';
+  }, 350);
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: persona.system,
+        messages: [{ role: 'user', content: USER_PROMPT(brand) }]
+      })
+    });
+    const raw = await resp.json();
+    const txt = (raw.content?.[0]?.text || '{}').trim().replace(/^```json\n?/,'').replace(/^```\n?/,'').replace(/```$/,'').trim();
+    let parsed = null;
+    try { parsed = JSON.parse(txt); } catch(e) {}
+    clearInterval(ticker);
+    barEl.style.width = '100%';
+    const elapsed = ((Date.now() - raceStart) / 1000).toFixed(1);
+    finishOrder.push(persona.id);
+    statusEl.textContent = elapsed + 's';
+    statusEl.style.background = 'var(--color-background-success)';
+    statusEl.style.color = 'var(--color-text-success)';
+    statusEl.style.borderColor = 'var(--color-border-success)';
+    return { id: persona.id, persona, data: parsed, elapsed: parseFloat(elapsed) };
+  } catch(e) {
+    clearInterval(ticker);
+    barEl.style.width = '100%';
+    statusEl.textContent = 'Error';
+    statusEl.style.background = 'var(--color-background-danger)';
+    statusEl.style.color = 'var(--color-text-danger)';
+    statusEl.style.borderColor = 'var(--color-border-danger)';
+    return { id: persona.id, persona, data: null, elapsed: 99 };
+  }
+}
+
+async function startRace() {
+  const brand = document.getElementById('brand-input').value.trim();
+  if (!brand) return;
+  raceStart = Date.now();
+  finishOrder = [];
+  allScored = [];
+  document.getElementById('race-btn').disabled = true;
+  document.getElementById('race-zone').style.display = 'block';
+  document.getElementById('winner-banner').style.display = 'none';
+  document.getElementById('brief-zone').style.display = 'none';
+  document.getElementById('all-briefs-zone').style.display = 'none';
+
+  ['A','B','C'].forEach(id => {
+    document.getElementById('bar-'+id).style.width = '0%';
+    const s = document.getElementById('status-'+id);
+    s.textContent = 'Standby'; s.style.background=''; s.style.color=''; s.style.borderColor='';
+    document.getElementById('score-'+id).style.display = 'none';
+    document.getElementById('stats-'+id).style.display = 'none';
+    document.getElementById('card-'+id).classList.remove('winner-card');
+  });
+
+  const calls = PERSONAS.map(p => callModel(p, brand));
+  const results = await Promise.all(calls);
+
+  const scored = results.map((r, i) => {
+    const sc = scoreResult(r.data);
+    return { ...r, sc };
+  });
+
+  const byTime = [...scored].sort((a,b) => a.elapsed - b.elapsed);
+  if (byTime[0]) byTime[0].sc.bd.speed = 10, byTime[0].sc.total += 10;
+  if (byTime[1]) byTime[1].sc.bd.speed = 5,  byTime[1].sc.total += 5;
+
+  scored.forEach(r => {
+    const pipe = (r.data?.pipeline||[]).length;
+    const prov = (r.data?.provenance||[]).length;
+    const ids  = (r.data?.pipeline||[]).filter(p=>p.trial_id&&p.trial_id!=='null').length;
+    const scoreEl = document.getElementById('score-'+r.id);
+    const statsEl = document.getElementById('stats-'+r.id);
+    scoreEl.textContent = r.sc.total + ' pts';
+    scoreEl.style.display = 'block';
+    statsEl.innerHTML = `${pipe} developer${pipe!==1?'s':''} · ${prov} source${prov!==1?'s':''} · ${ids} trial ID${ids!==1?'s':''}`;
+    statsEl.style.display = 'block';
+  });
+
+  allScored = scored;
+  const winner = scored.reduce((best,r) => r.sc.total > (best?.sc.total||0) ? r : best, null);
+
+  if (winner) {
+    document.getElementById('card-'+winner.id).classList.add('winner-card');
+    const wh = document.getElementById('winner-headline');
+    const ws = document.getElementById('winner-sub');
+    const wbd = document.getElementById('score-breakdown');
+    const pipe = (winner.data?.pipeline||[]).length;
+    const prov = (winner.data?.provenance||[]).length;
+    const ids  = (winner.data?.pipeline||[]).filter(p=>p.trial_id&&p.trial_id!=='null').length;
+
+    wh.textContent = `★  ${winner.persona.label} (${winner.persona.alias}) takes the title — ${winner.sc.total} pts`;
+    ws.textContent = `${pipe} biosimilar developers identified · ${prov} provenance sources · ${ids} trial IDs · ${winner.elapsed}s`;
+    
+    const bd = winner.sc.bd;
+    wbd.innerHTML = [
+      mkBadge('developers', bd.developers),
+      mkBadge('provenance', bd.provenance),
+      mkBadge('launches', bd.launches),
+      mkBadge('trial IDs', bd.trial_ids),
+      mkBadge('patent', bd.patent),
+      mkBadge('competitors', bd.competitors),
+      mkBadge('AI insight', bd.insight),
+      mkBadge('speed bonus', bd.speed),
+    ].join(' ');
+
+    document.getElementById('winner-banner').style.display = 'block';
+    document.getElementById('brief-content').textContent = formatBrief(winner.data);
+    
+    const insightEl = document.getElementById('ai-insight');
+    const insightTxt = document.getElementById('insight-text');
+    if (winner.data?.ai_insight) {
+      insightTxt.textContent = winner.data.ai_insight;
+      insightEl.style.display = 'block';
+    } else {
+      insightEl.style.display = 'none';
+    }
+    document.getElementById('brief-zone').style.display = 'block';
+
+    const allBriefs = document.getElementById('all-briefs');
+    allBriefs.innerHTML = '';
+    scored.filter(r => r.id !== winner.id).forEach(r => {
+      const isWinner = false;
+      const div = document.createElement('div');
+      div.style.cssText = 'background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem;border-left:3px solid '+r.persona.color;
+      div.innerHTML = `<p style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:0 0 2px">${r.persona.label} — ${r.sc.total} pts</p><p style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin:0 0 8px">${r.persona.alias}</p><div class="mono" style="font-size:11px;max-height:320px;overflow:hidden;position:relative">${formatBrief(r.data).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}<div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,var(--color-background-primary))"></div></div>`;
+      allBriefs.appendChild(div);
+    });
+    document.getElementById('all-briefs-zone').style.display = 'block';
+  }
+  document.getElementById('race-btn').disabled = false;
+}
+</script>

@@ -2,6 +2,8 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+.env.local
+frontend/.env.local
 .venv/
 venv/
 frontend/node_modules/
@@ -11,3 +13,4 @@ frontend/dist/
 dist/
 build/
 **/.DS_Store
+.claude/
