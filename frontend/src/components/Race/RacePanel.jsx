@@ -90,7 +90,7 @@ function exportPDF(brand, winnerAlias, briefText, aiInsight) {
   doc.save(`biosimilar-brief-${brand.toLowerCase().replace(/\s+/g, "-")}.pdf`);
 }
 
-export default function RacePanel({ accessKey }) {
+export default function RacePanel({ accessKey, onUnauthorized }) {
   const [brand,    setBrand]    = useState("");
   const [region,   setRegion]   = useState("");
   const [selected, setSelected] = useState(["analyst", "hunter", "scanner"]);
@@ -120,6 +120,7 @@ export default function RacePanel({ accessKey }) {
         body:    JSON.stringify({ brand, region, model_keys: selected }),
       });
       if (!resp.ok) {
+        if (resp.status === 401 && onUnauthorized) { onUnauthorized(); return; }
         const body = await resp.json().catch(() => ({}));
         throw new Error(body.detail || `API error ${resp.status}`);
       }
