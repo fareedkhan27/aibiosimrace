@@ -7,7 +7,6 @@ frontend/.env.local
 .venv/
 venv/
 frontend/node_modules/
-frontend/dist/
 .pytest_cache/
 *.egg-info/
 dist/
